@@ -1,0 +1,82 @@
+apiVersion: 1.0.0
+metadata:
+  name: quarkusdb
+
+projects:
+
+  - source:
+      type: git
+      location: 'https://github.com/VeerMuchandi/quarkusdb'
+    name: che-quarkusdb
+
+components:
+
+  - alias: quarkus-builder
+    type: dockerimage
+    image: quay.io/quarkus/centos-quarkus-maven:graalvm-1.0.0-rc16
+    memoryLimit: 2Gi
+    args: ['sleep', 'infinity']
+    mountSources: true
+    volumes:
+      - name: mavenrepo
+        containerPath: /project/.m2
+    env:
+      - name: HOME
+        value: /project
+  - alias: quarkus-runner
+    type: dockerimage
+    image: registry.fedoraproject.org/fedora-minimal:29
+    memoryLimit: 16M
+    mountSources: true
+    command: ['tail']
+    args: ['-f', '/dev/null']
+
+  - alias: git
+    type: dockerimage
+    image: sunix/git-devtools
+    mountSources: true
+    memoryLimit: 256M
+    args: ['sleep', 'infinity']
+
+  - alias: java
+    type: chePlugin
+    id: redhat/java/latest
+    memoryLimit: 1536M
+
+  - alias: yaml
+    id: redhat/vscode-yaml/latest
+    type: chePlugin
+
+  - type: cheEditor
+    alias: theia-editor
+    id: eclipse/che-theia/7.0.0-next
+
+commands:
+
+  - name: compile quarkus:dev
+    actions:
+      - type: exec
+        command: pkill java; mvn compile quarkus:dev
+        component: quarkus-builder
+        workdir: /projects/che-quarkusdb
+
+  - name: package
+    actions:
+      - type: exec
+        command: mvn package
+        component: quarkus-builder
+        workdir: /projects/che-quarkusdb
+
+  - name: package -Pnative
+    actions:
+      - type: exec
+        command: mvn package -Pnative
+        component: quarkus-builder
+        workdir: /projects/che-quarkusdb
+
+  - name: start native
+    actions:
+      - type: exec
+        command: ./hello-quarkus-1.0-SNAPSHOT-runner -Dquarkus.http.host=0.0.0.0
+        component: quarkus-runner
+        workdir: /projects/che-quarkusdb/target

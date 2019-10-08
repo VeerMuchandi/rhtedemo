@@ -1,0 +1,6 @@
+---
+displayName: Quarkus 
+description: Java Stack with GraalVM, Fedora,and Maven 
+tags: ["Java", "OpenJDK", "Maven", "GraalVM"]
+icon: https://www.eclipse.org/che/images/logo-eclipseche.svg
+globalMemoryLimit: 2674Mi

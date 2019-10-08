@@ -1,0 +1,19 @@
+apiVersion: tekton.dev/v1alpha1
+kind: Task
+metadata:
+  name: mvn-quarkus-native-build
+spec:
+  inputs:
+    resources:
+    - name: source
+      targetPath: /
+      type: git
+  steps:
+  - name: build-install
+    image: maven:3.6.0-jdk-8-slim
+    command:
+    - /usr/bin/mvn
+    args:
+      - clean 
+      - package 
+      - -Pnative 
