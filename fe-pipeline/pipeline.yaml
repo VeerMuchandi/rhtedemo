@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1alpha1
 kind: Pipeline
 metadata:
-  name: deploy-pipeline
+  name: frontend-deploy-pipeline
 spec:
   resources:
   - name: app-git
@@ -11,7 +11,7 @@ spec:
   tasks:
   - name: build
     taskRef:
-      name: s2i-java-fabric8
+      name: s2i-nodejs
     params:
       - name: TLSVERIFY
         value: "false"
@@ -29,4 +29,4 @@ spec:
       - build
     params:
     - name: ARGS
-      value: "rollout latest quarkusbackend"
+      value: "rollout latest angularfrontend"
