@@ -1,0 +1,421 @@
+Launcher URL: https://launcher-launcher-infra.apps.ocp4.home.ocpcloud.com
+CRW2: https://codeready-crw2.apps.ocp4.home.ocpcloud.com/
+Devconsole: https://devconsole.apps.ocp4.home.ocpcloud.com/
+oc login https://api.ocp4.home.ocpcloud.com:6443 
+
+Cleanup:
+oc delete project quarkusbackend
+delete workspace from CRW
+delete angularfrontend folder
+
+
+Demo
+
+Launcher
+
+Start, Input OpenShift credentials as a regular non-admin user.
+
+Create New Application as: quarkusbackend
+
+Destination Repository : quarkusbackend
+
+Frontend: None
+Backend: Quarkus, RelationalDB - PostgreSQL
+
+Click on Launch
+
+OpenShift Console
+
+Look at the builds
+Make connections
+
+oc label dc/quarkusbackend app.kubernetes.io/part-of=backendapp
+oc label dc/quarkusbackend-database app.kubernetes.io/part-of=backendapp
+oc label dc/quarkusbackend-database app.openshift.io/runtime=postgresql
+oc label dc/quarkusbackend app.openshift.io/runtime=java
+oc annotate dc/quarkusbackend app.openshift.io/connects-to=quarkusbackend-database
+oc annotate dc/quarkusbackend-welcome app.openshift.io/connects-to=quarkusbackend
+ 
+ 
+
+====
+
+
+Show git repo https://github.com/veerMuchandi/quarkusbackend
+
+Add a devfile
+
+=====
+Add to CRW
+
+To create application: https://codeready-crw2.apps.ocp4.home.ocpcloud.com/f?url=https://github.com/VeerMuchandi/quarkusbackend
+takes 4 mins
+
+Start live coding
+takes a 2 to 3 mins to download all dependencies
+
+
+== 
+
+show functionality using welcome application
+
+When ready show the same on CRW
+
+Code changes with live coding on
+
+adding by Name query
+
+Fruit.java
+@NamedQueries({
+        @NamedQuery(name = "Fruits.findAll", query = "SELECT f FROM Fruit f"),
+        @NamedQuery(name = "Fruits.findByName", query = "SELECT f from Fruit f where f.name = :name")
+})
+
+    @GET
+    @Produces("application/json")
+    public Fruit[] getByName(@QueryParam("name") String name) {
+
+        return em
+                .createNamedQuery("Fruits.findByName", Fruit.class)
+                .setParameter("name", name)
+                .getResultList()
+                .toArray(new Fruit[0]);
+    }
+
+Show how the context help works. 
+
+Show the issue with /api/fruits
+
+Run debugger to debug issues
+
+Fix the error
+
+FruitResource.java
+
+    @GET
+    @Produces("application/json")
+    public Fruit[] getByName(@QueryParam("name") String name) {
+        
+        if (name == null) {
+            return get();
+        } else
+        return em
+                .createNamedQuery("Fruits.findByName", Fruit.class)
+                .setParameter("name", name)
+                .getResultList()
+                .toArray(new Fruit[0]);
+    }
+    
+
+Edit deployment to remove auto trigger
+ triggers:
+    - type: ConfigChange
+    - type: ImageChange
+      imageChangeParams:
+        automatic: false
+    
+Commit code changes to git repo.
+provide usernanme and password
+
+Pipeline:
+=========
+cd pipeline
+oc create -f s2i-java-fabric8.yaml
+oc create -f https://raw.githubusercontent.com/tektoncd/catalog/master/openshift-client/openshift-client-task.yaml
+tkn tasks list
+
+oc create -f pipeline.yaml
+oc create -f pipeline-resources.yaml 
+oc login -u admin
+
+oc create serviceaccount pipeline
+oc adm policy add-scc-to-user privileged -z pipeline
+oc adm policy add-role-to-user edit -z pipeline
+
+
+tkn pipeline start deploy-pipeline -r app-git=sourcecode-git -r app-image=application-image -s pipeline 
+
+
+Deploy as Serverless:
+=====================
+
+kn service create quarkus-sl --image=image-registry.openshift-image-registry.svc:5000/quarkusbackend/quarkusbackend \
+ -l app.openshift.io/runtime=java\
+ -l app.kubernetes.io/part-of=backendapp \
+ --annotation app.openshift.io/connects-to=quarkusbackend-database \
+ -e QUARKUS_DATASOURCE_URL=jdbc:postgresql://quarkusbackend-database/my_data \
+ -e QUARKUS_DATASOURCE_USERNAME=dbuser \
+ -e QUARKUS_DATASOURCE_PASSWORD=secret
+ 
+ 
+ If required.
+ APPNAME=quarkusbackend;NAMESPACE=quarkusbackend;curl -s https://raw.githubusercontent.com/RedHatWorkshops/knative-on-ocp4/master/network-policies/allowIngressToAppInSMMR.yaml| sed -e "s/APPNAME/$APPNAME/" -e "s/NAMESPACE/$NAMESPACE/" | oc create -f -
+
+
+Create a frontend app using Launcher
+====================================
+Only frontend Angular
+No backend
+No Welcome
+Download option
+
+cd to rhte folder
+mv ~/Downloads/angularfrontend .
+
+Start CRC for local development:
+================================
+
+crc start
+
+Once cluster starts
+
+oc login -u developer -p developer https://api.crc.testing:6443
+
+Start VSCode editor:
+===================
+code .
+
+change code
+cat ../frontendbackup/src/index.html
+cat ../frontendbackup/src/app/app.component.html
+
+Remove line templateUrl: './app.component.html', from src/app/app.component.ts
+
+
+From OpenShift view
+create project
+create component with name angularfrontend
+app name: frontendapp
+add URL
+In view->terminal
+odo config set --env OUTPUT_DIR=dir/angularfrontend
+
+Push changes to build code and test
+Watch logs
+
+crc console --url
+
+Show the CRC console
+test the application
+
+
+=====
+=> sourcing 20-validate-variables.sh ...
+=> sourcing 25-validate-replication-variables.sh ...
+=> sourcing 30-base-config.sh ...
+---> 13:51:00     Processing basic MySQL configuration files ...
+=> sourcing 60-replication-config.sh ...
+=> sourcing 70-s2i-config.sh ...
+---> 13:51:00     Processing additional arbitrary  MySQL configuration provided by s2i ...
+=> sourcing 40-paas.cnf ...
+=> sourcing 50-my-tuning.cnf ...
+---> 13:51:00     Initializing database ...
+---> 13:51:00     Running /opt/rh/rh-mysql80/root/usr/libexec/mysqld --initialize --datadir=/var/lib/mysql/data
+---> 13:51:09     Starting MySQL server with disabled networking ...
+---> 13:51:09     Waiting for MySQL to start ...
+2020-01-10T13:51:09.953762Z 0 [Warning] [MY-011070] [Server] 'Disabling symbolic links using --skip-symbolic-links (or equivalent) is the default. Consider not using this option as it' is deprecated and will be removed in a future release.
+2020-01-10T13:51:09.959205Z 0 [System] [MY-010116] [Server] /opt/rh/rh-mysql80/root/usr/libexec/mysqld (mysqld 8.0.13) starting as process 93
+---> 13:51:10     Waiting for MySQL to start ...
+2020-01-10T13:51:11.217648Z 0 [Warning] [MY-010068] [Server] CA certificate ca.pem is self signed.
+2020-01-10T13:51:11.231684Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.infoschema@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:11.231748Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:11.231764Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:11.231776Z 0 [Warning] [MY-010315] [Server] 'user' entry 'root@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:11.231805Z 0 [Warning] [MY-010323] [Server] 'db' entry 'performance_schema mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:11.231815Z 0 [Warning] [MY-010323] [Server] 'db' entry 'sys mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:11.231829Z 0 [Warning] [MY-010311] [Server] 'proxies_priv' entry '@ root@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:11.234197Z 0 [Warning] [MY-010330] [Server] 'tables_priv' entry 'user mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:11.234224Z 0 [Warning] [MY-010330] [Server] 'tables_priv' entry 'sys_config mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:11.240068Z 0 [System] [MY-010931] [Server] /opt/rh/rh-mysql80/root/usr/libexec/mysqld: ready for connections. Version: '8.0.13'  socket: '/tmp/mysql.sock'  port: 0  Source distribution.
+2020-01-10T13:51:11.247882Z 0 [System] [MY-011323] [Server] X Plugin ready for connections. Socket: '/var/lib/mysql/mysqlx.sock'
+---> 13:51:11     MySQL started successfully
+---> 13:51:11     Setting password for MySQL root user ...
+mysql: [Warning] Using a password on the command line interface can be insecure.
+Checking if update is needed.
+Checking server version.
+Running queries to upgrade MySQL server.
+2020-01-10T13:51:11.902610Z 11 [Warning] [MY-010315] [Server] 'user' entry 'mysql.infoschema@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:11.902648Z 11 [Warning] [MY-010315] [Server] 'user' entry 'mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:11.902657Z 11 [Warning] [MY-010315] [Server] 'user' entry 'mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:11.902665Z 11 [Warning] [MY-010315] [Server] 'user' entry 'root@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:11.902688Z 11 [Warning] [MY-010323] [Server] 'db' entry 'performance_schema mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:11.902695Z 11 [Warning] [MY-010323] [Server] 'db' entry 'sys mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:11.902706Z 11 [Warning] [MY-010311] [Server] 'proxies_priv' entry '@ root@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:11.902827Z 11 [Warning] [MY-010330] [Server] 'tables_priv' entry 'user mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:11.902843Z 11 [Warning] [MY-010330] [Server] 'tables_priv' entry 'sys_config mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:16.752570Z 11 [Warning] [MY-010315] [Server] 'user' entry 'mysql.infoschema@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:16.752599Z 11 [Warning] [MY-010315] [Server] 'user' entry 'mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:16.752607Z 11 [Warning] [MY-010315] [Server] 'user' entry 'mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:16.752614Z 11 [Warning] [MY-010315] [Server] 'user' entry 'root@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:16.752632Z 11 [Warning] [MY-010323] [Server] 'db' entry 'performance_schema mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:16.752638Z 11 [Warning] [MY-010323] [Server] 'db' entry 'sys mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:16.752648Z 11 [Warning] [MY-010311] [Server] 'proxies_priv' entry '@ root@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:16.752758Z 11 [Warning] [MY-010330] [Server] 'tables_priv' entry 'user mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:16.752765Z 11 [Warning] [MY-010330] [Server] 'tables_priv' entry 'sys_config mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:21.662374Z 11 [Warning] [MY-010315] [Server] 'user' entry 'mysql.infoschema@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:21.662417Z 11 [Warning] [MY-010315] [Server] 'user' entry 'mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:21.662431Z 11 [Warning] [MY-010315] [Server] 'user' entry 'mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:21.662444Z 11 [Warning] [MY-010315] [Server] 'user' entry 'root@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:21.662468Z 11 [Warning] [MY-010323] [Server] 'db' entry 'performance_schema mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:21.662475Z 11 [Warning] [MY-010323] [Server] 'db' entry 'sys mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:21.662488Z 11 [Warning] [MY-010311] [Server] 'proxies_priv' entry '@ root@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:21.662629Z 11 [Warning] [MY-010330] [Server] 'tables_priv' entry 'user mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:51:21.662640Z 11 [Warning] [MY-010330] [Server] 'tables_priv' entry 'sys_config mysql.sys@localhost' ignored in --skip-name-resolve mode.
+Upgrading system table data.
+Checking system database.
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+The sys schema is already up to date (version 2.0.0).
+Checking databases.
+sys.sys_config                                     OK
+Upgrade process completed successfully.
+Checking if update is needed.
+---> 13:52:18     Creating user specified by MYSQL_USER (dbuser) ...
+---> 13:52:18     Creating database my_data ...
+---> 13:52:18     Granting privileges to user dbuser for my_data ...
+2020-01-10T13:52:18.427271Z 14 [Warning] [MY-010315] [Server] 'user' entry 'mysql.infoschema@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:18.427299Z 14 [Warning] [MY-010315] [Server] 'user' entry 'mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:18.427308Z 14 [Warning] [MY-010315] [Server] 'user' entry 'mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:18.427315Z 14 [Warning] [MY-010315] [Server] 'user' entry 'root@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:18.427338Z 14 [Warning] [MY-010323] [Server] 'db' entry 'performance_schema mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:18.427343Z 14 [Warning] [MY-010323] [Server] 'db' entry 'sys mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:18.427359Z 14 [Warning] [MY-010311] [Server] 'proxies_priv' entry '@ root@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:18.427497Z 14 [Warning] [MY-010330] [Server] 'tables_priv' entry 'user mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:18.427506Z 14 [Warning] [MY-010330] [Server] 'tables_priv' entry 'sys_config mysql.sys@localhost' ignored in --skip-name-resolve mode.
+---> 13:52:18     Initialization finished
+=> sourcing 40-datadir-action.sh ...
+---> 13:52:18     Running datadir action: upgrade-warn
+---> 13:52:18     MySQL server version check passed, both server and data directory are version 8.0.
+=> sourcing 50-passwd-change.sh ...
+---> 13:52:18     Setting passwords ...
+2020-01-10T13:52:18.518805Z 17 [Warning] [MY-010235] [Server] Following users were specified in CREATE USER IF NOT EXISTS but they already exist. Corresponding entry in binary log used default authentication plugin 'caching_sha2_password' to rewrite authentication information (if any) for them: 'root'@'%'
+---> 13:52:18     Shutting down MySQL ...
+2020-01-10T13:52:18.565530Z 18 [Warning] [MY-010315] [Server] 'user' entry 'mysql.infoschema@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:18.565560Z 18 [Warning] [MY-010315] [Server] 'user' entry 'mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:18.565568Z 18 [Warning] [MY-010315] [Server] 'user' entry 'mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:18.565575Z 18 [Warning] [MY-010315] [Server] 'user' entry 'root@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:18.565616Z 18 [Warning] [MY-010323] [Server] 'db' entry 'performance_schema mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:18.565624Z 18 [Warning] [MY-010323] [Server] 'db' entry 'sys mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:18.565636Z 18 [Warning] [MY-010311] [Server] 'proxies_priv' entry '@ root@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:18.565812Z 18 [Warning] [MY-010330] [Server] 'tables_priv' entry 'user mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:18.565830Z 18 [Warning] [MY-010330] [Server] 'tables_priv' entry 'sys_config mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:18.577715Z 18 [System] [MY-013172] [Server] Received SHUTDOWN from user root. Shutting down mysqld (Version: 8.0.13).
+2020-01-10T13:52:22.553593Z 0 [System] [MY-010910] [Server] /opt/rh/rh-mysql80/root/usr/libexec/mysqld: Shutdown complete (mysqld 8.0.13)  Source distribution.
+---> 13:52:22     Cleaning up environment variables MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE and MYSQL_ROOT_PASSWORD ...
+---> 13:52:22     Running final exec -- Only MySQL server logs after this point
+2020-01-10T13:52:22.796638Z 0 [Warning] [MY-011070] [Server] 'Disabling symbolic links using --skip-symbolic-links (or equivalent) is the default. Consider not using this option as it' is deprecated and will be removed in a future release.
+2020-01-10T13:52:22.797974Z 0 [System] [MY-010116] [Server] /opt/rh/rh-mysql80/root/usr/libexec/mysqld (mysqld 8.0.13) starting as process 1
+2020-01-10T13:52:23.458880Z 0 [Warning] [MY-010068] [Server] CA certificate ca.pem is self signed.
+2020-01-10T13:52:23.477013Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.infoschema@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:23.477051Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:23.477062Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:23.477072Z 0 [Warning] [MY-010315] [Server] 'user' entry 'root@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:23.477104Z 0 [Warning] [MY-010323] [Server] 'db' entry 'performance_schema mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:23.477111Z 0 [Warning] [MY-010323] [Server] 'db' entry 'sys mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:23.477133Z 0 [Warning] [MY-010311] [Server] 'proxies_priv' entry '@ root@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:23.479725Z 0 [Warning] [MY-010330] [Server] 'tables_priv' entry 'user mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:23.479763Z 0 [Warning] [MY-010330] [Server] 'tables_priv' entry 'sys_config mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T13:52:23.485558Z 0 [System] [MY-010931] [Server] /opt/rh/rh-mysql80/root/usr/libexec/mysqld: ready for connections. Version: '8.0.13'  socket: '/var/lib/mysql/mysql.sock'  port: 3306  Source distribution.
+2020-01-10T13:52:23.588881Z 0 [System] [MY-011323] [Server] X Plugin ready for connections. Socket: '/var/lib/mysql/mysqlx.sock' bind-address: '::' port: 33060
+
+
+=====
+
+good one
+
+64 lines
+=> sourcing 20-validate-variables.sh ...
+=> sourcing 25-validate-replication-variables.sh ...
+=> sourcing 30-base-config.sh ...
+---> 16:18:28     Processing basic MySQL configuration files ...
+=> sourcing 60-replication-config.sh ...
+=> sourcing 70-s2i-config.sh ...
+---> 16:18:28     Processing additional arbitrary  MySQL configuration provided by s2i ...
+=> sourcing 40-paas.cnf ...
+=> sourcing 50-my-tuning.cnf ...
+---> 16:18:28     Starting MySQL server with disabled networking ...
+---> 16:18:28     Waiting for MySQL to start ...
+2020-01-10T16:18:29.127431Z 0 [Warning] [MY-011070] [Server] 'Disabling symbolic links using --skip-symbolic-links (or equivalent) is the default. Consider not using this option as it' is deprecated and will be removed in a future release.
+2020-01-10T16:18:29.128354Z 0 [System] [MY-010116] [Server] /opt/rh/rh-mysql80/root/usr/libexec/mysqld (mysqld 8.0.13) starting as process 28
+2020-01-10T16:18:29.762370Z 0 [System] [MY-010229] [Server] Starting crash recovery...
+2020-01-10T16:18:29.767476Z 0 [System] [MY-010232] [Server] Crash recovery finished.
+2020-01-10T16:18:29.868409Z 0 [Warning] [MY-010068] [Server] CA certificate ca.pem is self signed.
+2020-01-10T16:18:29.874877Z 0 [Warning] [MY-011810] [Server] Insecure configuration for --pid-file: Location '/var/lib/mysql/data' in the path is accessible to all OS users. Consider choosing a different directory.
+2020-01-10T16:18:29.882618Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.infoschema@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:29.882647Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:29.882655Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:29.882662Z 0 [Warning] [MY-010315] [Server] 'user' entry 'root@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:29.882686Z 0 [Warning] [MY-010323] [Server] 'db' entry 'performance_schema mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:29.882694Z 0 [Warning] [MY-010323] [Server] 'db' entry 'sys mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:29.882708Z 0 [Warning] [MY-010311] [Server] 'proxies_priv' entry '@ root@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:29.884591Z 0 [Warning] [MY-010330] [Server] 'tables_priv' entry 'user mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:29.884623Z 0 [Warning] [MY-010330] [Server] 'tables_priv' entry 'sys_config mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:29.888805Z 0 [System] [MY-010931] [Server] /opt/rh/rh-mysql80/root/usr/libexec/mysqld: ready for connections. Version: '8.0.13'  socket: '/tmp/mysql.sock'  port: 0  Source distribution.
+---> 16:18:29     MySQL started successfully
+=> sourcing 40-datadir-action.sh ...
+---> 16:18:29     Running datadir action: upgrade-warn
+---> 16:18:29     MySQL server version check passed, both server and data directory are version 8.0.
+=> sourcing 50-passwd-change.sh ...
+---> 16:18:29     Setting passwords ...
+2020-01-10T16:18:29.991319Z 0 [System] [MY-011323] [Server] X Plugin ready for connections. Socket: '/var/lib/mysql/mysqlx.sock'
+2020-01-10T16:18:29.991757Z 11 [Warning] [MY-010235] [Server] Following users were specified in CREATE USER IF NOT EXISTS but they already exist. Corresponding entry in binary log used default authentication plugin 'caching_sha2_password' to rewrite authentication information (if any) for them: 'root'@'%'
+---> 16:18:30     Shutting down MySQL ...
+2020-01-10T16:18:30.036672Z 12 [Warning] [MY-010315] [Server] 'user' entry 'mysql.infoschema@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:30.036710Z 12 [Warning] [MY-010315] [Server] 'user' entry 'mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:30.036722Z 12 [Warning] [MY-010315] [Server] 'user' entry 'mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:30.036730Z 12 [Warning] [MY-010315] [Server] 'user' entry 'root@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:30.036771Z 12 [Warning] [MY-010323] [Server] 'db' entry 'performance_schema mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:30.036778Z 12 [Warning] [MY-010323] [Server] 'db' entry 'sys mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:30.036794Z 12 [Warning] [MY-010311] [Server] 'proxies_priv' entry '@ root@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:30.036989Z 12 [Warning] [MY-010330] [Server] 'tables_priv' entry 'user mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:30.037024Z 12 [Warning] [MY-010330] [Server] 'tables_priv' entry 'sys_config mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:30.051159Z 12 [System] [MY-013172] [Server] Received SHUTDOWN from user root. Shutting down mysqld (Version: 8.0.13).
+2020-01-10T16:18:32.318681Z 0 [System] [MY-010910] [Server] /opt/rh/rh-mysql80/root/usr/libexec/mysqld: Shutdown complete (mysqld 8.0.13)  Source distribution.
+---> 16:18:33     Cleaning up environment variables MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE and MYSQL_ROOT_PASSWORD ...
+---> 16:18:33     Running final exec -- Only MySQL server logs after this point
+2020-01-10T16:18:33.263947Z 0 [Warning] [MY-011070] [Server] 'Disabling symbolic links using --skip-symbolic-links (or equivalent) is the default. Consider not using this option as it' is deprecated and will be removed in a future release.
+2020-01-10T16:18:33.265320Z 0 [System] [MY-010116] [Server] /opt/rh/rh-mysql80/root/usr/libexec/mysqld (mysqld 8.0.13) starting as process 1
+2020-01-10T16:18:33.816715Z 0 [Warning] [MY-010068] [Server] CA certificate ca.pem is self signed.
+2020-01-10T16:18:33.823360Z 0 [Warning] [MY-011810] [Server] Insecure configuration for --pid-file: Location '/var/lib/mysql/data' in the path is accessible to all OS users. Consider choosing a different directory.
+2020-01-10T16:18:33.831874Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.infoschema@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:33.831902Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:33.831910Z 0 [Warning] [MY-010315] [Server] 'user' entry 'mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:33.831917Z 0 [Warning] [MY-010315] [Server] 'user' entry 'root@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:33.831943Z 0 [Warning] [MY-010323] [Server] 'db' entry 'performance_schema mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:33.831949Z 0 [Warning] [MY-010323] [Server] 'db' entry 'sys mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:33.831959Z 0 [Warning] [MY-010311] [Server] 'proxies_priv' entry '@ root@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:33.834252Z 0 [Warning] [MY-010330] [Server] 'tables_priv' entry 'user mysql.session@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:33.834279Z 0 [Warning] [MY-010330] [Server] 'tables_priv' entry 'sys_config mysql.sys@localhost' ignored in --skip-name-resolve mode.
+2020-01-10T16:18:33.838869Z 0 [System] [MY-010931] [Server] /opt/rh/rh-mysql80/root/usr/libexec/mysqld: ready for connections. Version: '8.0.13'  socket: '/var/lib/mysql/mysql.sock'  port: 3306  Source distribution.
+2020-01-10T16:18:33.956360Z 0 [System] [MY-011323] [Server] X Plugin ready for connections. Socket: '/var/lib/mysql/mysqlx.sock' bind-address: '::' port: 33060

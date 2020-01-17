@@ -78,7 +78,7 @@ spec:
   test: false
   triggers:
   - imageChangeParams:
-      automatic: true
+      automatic: false
       containerNames:
       - angularfrontend
       from:

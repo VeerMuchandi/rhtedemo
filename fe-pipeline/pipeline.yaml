@@ -29,4 +29,7 @@ spec:
       - build
     params:
     - name: ARGS
-      value: "rollout latest angularfrontend"
+      value: 
+      -  rollout
+      -  latest
+      -  angularfrontend

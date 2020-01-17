@@ -1,0 +1,122 @@
+apiVersion: 1.0.0
+metadata:
+  generateName: fruitstocker-
+
+projects:
+
+  - source:
+      type: git
+      location: 'https://github.com/veermuchandi/quarkusbackend'
+    name: quarkusbackend
+
+components:
+
+  - alias: quarkus-backend-dev
+    type: dockerimage
+    image: quay.io/quarkus/centos-quarkus-maven:19.2.1
+    memoryLimit: 5Gi
+    command: ['sleep']
+    args: ['infinity']
+    mountSources: true
+    env:
+      - name: MAVEN_OPTS
+        value: '-Dmaven.repo.local=/projects/local/m2repo'
+      - name: QUARKUS_DATASOURCE_USERNAME
+        value: 'user'
+      - name: QUARKUS_DATASOURCE_PASSWORD
+        value: 'password'
+      - name: QUARKUS_DATASOURCE_URL
+        value: 'jdbc:mysql://localhost/sampledb'
+    endpoints:
+      - name: 'quarkus/dev'
+        port: 8080
+
+  - alias: quarkus-backend-native-prod
+    type: dockerimage
+    image: quay.io/quarkus/ubi-quarkus-native-image:19.2.0.1
+    memoryLimit: 32M
+    mountSources: true
+    command: ['tail']
+    args: ['-f', '/dev/null']
+    env:
+      - name: QUARKUS_DATASOURCE_USERNAME
+        value: 'user'
+      - name: QUARKUS_DATASOURCE_PASSWORD
+        value: 'password'
+      - name: QUARKUS_DATASOURCE_URL
+        value: 'jdbc:mysql://localhost/sampledb'
+    endpoints:
+      - name: '8080/tcp'
+        port: 8080
+
+  - alias: mysql
+    type: dockerimage
+    image: centos/mysql-57-centos7
+    memoryLimit: 512Mi
+    env:
+     - name: MYSQL_USER
+       value: user
+     - name: MYSQL_PASSWORD
+       value: password
+     - name: MYSQL_DATABASE
+       value: sampledb
+     - name: MYSQL_ROOT_PASSWORD
+       value: password
+    volumes:
+     - name: mysql-storage
+       containerPath: /var/lib/mysql/data
+  - alias: java
+    type: chePlugin
+    id: redhat/java/latest
+    memoryLimit: 1536M
+
+  - id: redhat/vscode-openshift-connector/latest
+    type: chePlugin
+    alias: vscode-openshift
+
+  - alias: git
+    type: dockerimage
+    image: sunix/git-devtools
+    mountSources: true
+    memoryLimit: 64M
+    args: ['sleep', 'infinity']
+
+commands:
+  - name: start DEVMODE quarkus-backend
+    actions:
+      - type: exec
+        command: pkill java; mvn compile quarkus:dev
+        component: quarkus-backend-dev
+        workdir: /projects/quarkusbackend
+
+  - name: build NATIVE quarkus-backend
+    actions:
+      - type: exec
+        command: pkill java; mvn package -Pnative
+        component: quarkus-backend-dev
+        workdir: /projects/quarkusbackend
+
+  - name: start NATIVE quarkus-backend
+    actions:
+      - type: exec
+        command: ./quarkusbackend-1.0.0-SNAPSHOT-runner -Dquarkus.http.host=0.0.0.0
+        component: quarkus-backend-native-prod
+        workdir: /projects/quarkusbackend/target
+
+  - name: connect java debugger quarkus-backend
+    actions:
+      - type: vscode-launch
+        referenceContent: |
+          {
+          "version": "0.2.0",
+          "configurations": [
+            {
+              "type": "java",
+              "name": "Debug (Attach) - Remote",
+              "request": "attach",
+              "hostName": "localhost",
+              "port": 5005
+            }]
+          }
+
+

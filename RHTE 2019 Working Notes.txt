@@ -34,6 +34,10 @@ Demo:
 Launcher URL: https://launcher-launcher-infra.apps.ocp4.home.ocpcloud.com
 CodeReady: http://codeready-crw.apps.ocp4.home.ocpcloud.com 
 
+CRW2: https://codeready-crw2.apps.ocp4.home.ocpcloud.com/
+To create application: https://codeready-crw2.apps.ocp4.home.ocpcloud.com/f?url=https://github.com/VeerMuchandi/quarkusbackend
+
+
 
 Launcher
 
@@ -108,6 +112,18 @@ Fruit.java
         @NamedQuery(name = "Fruits.findByName", query = "SELECT f from Fruit f where f.name = :name")
 })
 
+    @GET
+    @Produces("application/json")
+    public Fruit[] getByName(@QueryParam("name") String name) {
+
+        return em
+                .createNamedQuery("Fruits.findByName", Fruit.class)
+                .setParameter("name", name)
+                .getResultList()
+                .toArray(new Fruit[0]);
+    }
+
+
 FruitResource.java
 
     @GET
@@ -172,8 +188,15 @@ Exposing as serverless
 ======================
 Add app to SMMR in istio-serverless project
 
-$ kn service create quarkusdb-sl --image=image-registry.openshift-image-registry.svc:5000/quarkusdb/quarkusdb \
- -e QUARKUS_DATASOURCE_URL=jdbc:mysql://quarkusdb-database.quarkusdb.svc/my_data \
+
+$ kn service create quarkusbackend-sl --image=image-registry.openshift-image-registry.svc:5000/quarkusbackend/quarkusbackend \
+ -e QUARKUS_DATASOURCE_URL=jdbc:postgresql://quarkusbackend-database/my_data \
+ -e QUARKUS_DATASOURCE_USERNAME=dbuser \
+ -e QUARKUS_DATASOURCE_PASSWORD=secret 
+ 
+
+$ kn service create quarkusbackend-sl --image=image-registry.openshift-image-registry.svc:5000/quarkusbackend/quarkusbackend \
+ -e QUARKUS_DATASOURCE_URL=jdbc:mysql://quarkusbackend-database.quarkusbackend.svc/my_data \
  -e QUARKUS_DATASOURCE_USERNAME=dbuser \
  -e QUARKUS_DATASOURCE_PASSWORD=secret 
 Service 'quarkusdb-sl' successfully created in namespace 'quarkusdb'.
